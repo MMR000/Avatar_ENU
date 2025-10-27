@@ -24,7 +24,7 @@
 ## ✨ Features
 
 - 🎤 **Lip-Sync (Wav2Lip)** — Drive face videos from audio.
-- 🎬 **Template-based composition** — Use ready-made video templates (female `f_*`, male `m_*`) and green-screen assets.
+- 🎬 **Template-based composition** — Ready-made video templates (female `f_*`, male `m_*`) and green-screen assets.
 - ⚙️ **Asynchronous pipeline** — Celery + RabbitMQ for robust background jobs and batching.
 - 🧠 **Text/TTS/NLP utilities** — Flexible helpers for text→audio workflows.
 - 🧩 **Modular structure** — Clean `routes/`, `utils/`, and `wav2lip/` layout.
@@ -32,15 +32,16 @@
 - 📈 **Logs & observability** — Structured logs under `logs/` and RabbitMQ management UI.
 
 ---
+
 ### Architecture (Step-by-step)
 
-1. **Frontend UI** (`templates/index.html`) accepts audio/text input and shows progress.
-2. **Routes** (`routes/text_processing.py`, `routes/video_generation.py`) validate input and enqueue jobs.
-3. **Celery Tasks** (`tasks.py`, `celery_app.py`) orchestrate the pipeline:
-   - Push/pull via **RabbitMQ** (AMQP 5672; UI 15672).
-   - Run **Wav2Lip** inference under `wav2lip/`.
-   - Compose clips with `utils/video_utils.py` and **FFmpeg**.
-4. **Outputs** are written to `videoset/output/` (final) and `temp/` (intermediate).
+1. **Frontend UI** (`templates/index.html`) accepts audio/text input and shows progress.  
+2. **Routes** (`routes/text_processing.py`, `routes/video_generation.py`) validate input and enqueue jobs.  
+3. **Celery Tasks** (`tasks.py`, `celery_app.py`) orchestrate the pipeline:  
+   - Push/pull via **RabbitMQ** (AMQP 5672; UI 15672).  
+   - Run **Wav2Lip** inference under `wav2lip/`.  
+   - Compose with `utils/video_utils.py` and **FFmpeg**.  
+4. **Outputs** are written to `videoset/output/` (final) and `temp/` (intermediate).  
 5. **UI** fetches results for preview/download.
 
 ---
@@ -51,6 +52,7 @@
 <summary><b>Click to expand tree</b></summary>
 
 ```
+
 app.py                # Flask entrypoint
 celery_app.py         # Celery application configuration
 cli.py                # Optional CLI utilities
@@ -64,13 +66,14 @@ static/               # CSS/JS/images/templates (f_*.mp4, m_*.mp4, green_bg.png)
 routes/               # API routes: text_processing, video_generation
 utils/                # TTS/NLP/merge/video utils
 wav2lip/              # Wav2Lip module & scripts
-weights/              # Model weights (kept out of Git LFS by default)
+weights/              # Model weights (kept out of VCS)
 videoset/             # Samples & outputs
 logs/                 # Runtime logs
 temp/                 # Intermediate artifacts
 LICENSE               # License file
 README.md             # This document
-```
+
+````
 
 </details>
 
@@ -78,7 +81,7 @@ README.md             # This document
 
 ## 🚀 Quick Start (Local)
 
-> **Prereqs**: Ubuntu 24.04, Python 3.12+, `ffmpeg`, `sox`, `libsndfile1`.
+> **Prereqs**: Ubuntu 24.04, Python 3.12+, `ffmpeg`, `sox`, `libsndfile1`.  
 > **Broker**: RabbitMQ (Docker recommended).
 
 ```bash
@@ -113,7 +116,7 @@ source .venv/bin/activate && celery -A celery_app worker -l INFO
 
 # 5) Open UI
 # http://127.0.0.1:8000
-```
+````
 
 ---
 
@@ -256,6 +259,134 @@ TEMP_DIR=./temp
 
 ---
 
+## 📚 Code & Data Repository (Reproducibility)
+
+
+### 1) Code
+
+* **Algorithms / Scripts**: all source files under:
+
+  * `app.py`, `celery_app.py`, `tasks.py`, `routes/`, `utils/`, `wav2lip/`
+  * CLI: `cli.py`
+  * Optional: `consumer_celery.py`, `docker-compose.yml`, `Dockerfile`
+* **Organization**:
+
+  * **Backend**: Flask app in `app.py`, routes in `routes/`
+  * **Tasks**: Celery configuration in `celery_app.py`, tasks in `tasks.py`
+  * **Audio/Video**: `utils/tts.py`, `utils/video_utils.py`
+  * **Lip-Sync**: `wav2lip/` (inference & helpers)
+  * **Static/UI**: `templates/`, `static/`
+
+### 2) README (this file)
+
+Contains title, description, dataset info, code overview, usage, requirements, methodology, citations, license & contribution guidelines.
+
+### 3) Dataset Information
+
+* **Built-in samples**: `videoset/sample/` (demo videos) and template clips in `static/video_templates/`.
+* **Format**: MP4 for video, WAV/MP3 for audio (16k–48kHz), PNG for overlays.
+
+### 4) Code Information
+
+* **Key modules**:
+
+  * `routes/text_processing.py` — text handling & pre-TTS logic
+  * `routes/video_generation.py` — job submission & result endpoints
+  * `utils/tts.py` — TTS helpers for audio creation
+  * `utils/video_utils.py` — FFmpeg-based composition
+  * `wav2lip/` — lip-sync inference utilities
+* **Entry points**:
+
+  * Web: `python app.py`
+  * Worker: `celery -A celery_app worker -l INFO`
+  * CLI: `python cli.py --help`
+
+### 5) Usage Instructions (Reproduction)
+
+**Goal**: reproduce a lip-sync render deterministically from provided inputs.
+
+```bash
+# A) Environment
+python3 -m venv .venv && source .venv/bin/activate
+pip install -U pip && pip install -r requirements.txt
+
+# B) Broker (local Docker)
+docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 \
+  -e RABBITMQ_DEFAULT_USER=admin -e RABBITMQ_DEFAULT_PASS=admin \
+  rabbitmq:3.13-management
+
+# C) Set env
+cp .env.example .env  # adjust if needed
+
+# D) Run services
+# Terminal 1:
+python app.py
+# Terminal 2:
+celery -A celery_app worker -l INFO
+
+# E) Reproduce from samples
+# Option 1: use your own audio (WAV/MP3)
+# Option 2: generate audio via utils/tts.py (if configured)
+# Then enqueue a job via the UI or CLI:
+python cli.py --audio path/to/audio.wav \
+  --template static/video_templates/f_1.mp4 \
+  --out videoset/output/output.mp4
+```
+
+**Determinism tips**:
+
+* Fix seeds where applicable: `PYTHONHASHSEED=0`; set seeds in your ML libs.
+* Pin exact dependency versions via `requirements.txt`.
+* Record GPU/driver/CUDA versions in your paper or below.
+
+### 6) Requirements
+
+* **OS**: Ubuntu 24.04
+* **Python**: 3.12
+* **System deps**: `ffmpeg`, `sox`, `libsndfile1`
+* **Broker**: RabbitMQ (AMQP 5672; UI 15672)
+* **Optional**: NVIDIA GPU + CUDA/cuDNN matching your PyTorch build
+* **Python deps**: see `requirements.txt`
+
+### 7) Methodology
+
+1. **Pre-processing**: (optional) TTS to synthesize narration; resample/normalize audio.
+2. **Lip-Sync**: Wav2Lip model aligns mouth region with audio mel-spectrogram; frame-wise synthesis.
+3. **Composition**: Merge lip-synced face with template clip via `utils/video_utils.py` (FFmpeg).
+4. **Post-processing**: Mix audio tracks, apply overlays (e.g., green-screen), package MP4.
+5. **Batching**: Jobs queued and executed asynchronously via Celery/RabbitMQ.
+
+### 8) Citations
+
+If you use this repository, please cite:
+
+```
+@software{Avatar_ENU,
+  title   = {Avatar_ENU: Lip-Sync Video Pipeline},
+  author  = {Altaibek M. et.all},
+  year    = {2025},
+  url     = {https://github.com/MMR000/Avatar_ENU}
+}
+```
+
+And the original Wav2Lip work:
+
+```
+@inproceedings{prajwal2020wav2lip,
+  title     = {A Lip Sync Expert Is All You Need for Speech to Lip Generation},
+  author    = {Prajwal, K R and Mukhopadhyay, Rudrabha and Namboodiri, Vinay P and Jawahar, C V},
+  booktitle = {ACM Multimedia},
+  year      = {2020}
+}
+```
+
+### 9) License & Contribution Guidelines
+
+* **License**: see [LICENSE](./LICENSE).
+* **Contributions**: PRs and issues are welcome. Keep changes modular; document public APIs; include tests when possible.
+
+---
+
 ## 🗺️ Roadmap
 
 * [ ] Optional GPU inference presets and auto device selection
@@ -284,7 +415,3 @@ See [LICENSE](./LICENSE).
 * **wavesurfer.js** (audio visualization)
 * Open-source community and tool maintainers
 
-```
-
-::contentReference[oaicite:0]{index=0}
-```
