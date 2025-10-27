@@ -1,0 +1,6 @@
+checkpoints/
+gfpgan/weights/
+static/video_output
+static/audio
+static/logs
+/logs/

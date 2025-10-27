@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soile Avatar</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/wavesurfer.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</head>
+<body>
+    <!-- 🌟 页面头部 -->
+    <header class="header">
+        <h1>✨ SoileAvatar ✨</h1>
+        <p>Kazakh Digital Avatar Assistant for Education</p>
+    </header>
+
+    <!-- 🌟 文本输入部分 -->
+    <section class="input-section">
+        <textarea id="text-input" placeholder="Enter your text here..."></textarea>
+        <button id="process-button" onclick="startProcessing()">🚀 Start Processing</button>
+    </section>
+
+    <!-- 🌟 结果部分 -->
+    <section id="results" class="results-section">
+        <p class="status-message">Results will be displayed here...</p>
+    </section>
+
+    <!-- 🌟 返回顶部按钮 -->
+    <button id="scroll-top-button" onclick="scrollToTop()">⬆️ Back to Top</button>
+
+    <!-- 🌟 页面底部 -->
+    <footer class="footer">
+        <p>Developed by ENU NLP Lab | <a href="#">Privacy Policy</a></p>
+    </footer>
+</body>
+</html>

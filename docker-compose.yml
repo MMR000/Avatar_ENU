@@ -1,0 +1,42 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    hostname: rabbitmq
+    ports: 
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  redis:
+    image: redis:7
+    hostname: redis
+    ports: [ "6379:6379" ]
+
+  api:
+    build: .
+    command: uvicorn app.service:app --host 0.0.0.0 --port 8000
+    environment:
+      - FILE_SERVER_UPLOAD_URL=${FILE_SERVER_UPLOAD_URL}
+      - FILE_SERVER_TOKEN=${FILE_SERVER_TOKEN}
+      - CELERY_BROKER=amqp://guest:guest@rabbitmq//
+      - CELERY_BACKEND=redis://redis/0
+    volumes:
+      - ./static:/opt/avatar/static
+    depends_on: [rabbitmq, redis]
+
+  worker:
+    build: .
+    command: >
+      celery -A app.celery_app.celery_app worker
+      -Q celery --concurrency=1 --loglevel=INFO
+    environment:
+      - FILE_SERVER_UPLOAD_URL=${FILE_SERVER_UPLOAD_URL}
+      - FILE_SERVER_TOKEN=${FILE_SERVER_TOKEN}
+      - CELERY_BROKER=amqp://guest:guest@rabbitmq//
+      - CELERY_BACKEND=redis://redis/0
+    depends_on: [rabbitmq, redis]
+
+volumes:
+  rabbitmq_data:
