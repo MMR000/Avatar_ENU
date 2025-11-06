@@ -1,22 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-celery_app.py ― 独立的 RabbitMQ consumer（口型后台批处理）
 
-启动示例：
-  python celery_app.py
-或在 systemd / Docker 中把环境变量写进 .env 或 EnvironmentFile
-"""
 import os, json, uuid, pathlib, logging
 import time
 import pika, requests
 
-# ──────────────────── .env 环境变量 ────────────────────
+
 from dotenv import load_dotenv
-# 默认会在脚本所在目录寻找 .env；如需自定义路径自行传参
+
 load_dotenv()
 
-# ──────────────────── 外部工具 ────────────────────
 from utils.nlp          import parse_text
 from utils.tts          import synthesize_speech
 from utils.video_utils  import generate_batch_lip_sync
@@ -25,7 +18,7 @@ from utils.classify     import classify_sentence_structure
 from utils.api_id       import IDLogger
 from utils.output_id    import OutputLogger
 
-# ──────────────────── 配置 ────────────────────
+
 RABBIT_HOST  = os.getenv("RABBIT_HOST")
 RABBIT_USER  = os.getenv("RABBITMQ_USER")
 RABBIT_PASS  = os.getenv("RABBITMQ_PASS")
@@ -46,10 +39,10 @@ logging.basicConfig(
     datefmt="%H:%M:%S"
 )
 
-# ──────────────────── helpers ────────────────────
+
 def upload_file(fp: str) -> str | None:
     if not FILE_UPLOAD:
-        logging.warning("FILE_SERVER_UPLOAD_URL 未配置，直接返回本地路径")
+        logging.warning("FILE_SERVER_UPLOAD_URL is not configured, and the local path is returned directly.")
         return None
     try:
         with open(fp, "rb") as f:
@@ -65,22 +58,22 @@ def upload_file(fp: str) -> str | None:
             return None
 
         ctype = r.headers.get("content-type", "")
-        # 统一把 URL 字段提取出来，兼容纯文本 / JSON / {"data":{...}}
+
         if ctype.startswith(("application/json", "text/")):
             try:
                 data = json.loads(r.text)
-                # 常见字段
+
                 for k in ("url", "fileUrl", "path"):
                     if k in data:
                         return data[k]
-                # 二级 data
+
                 if isinstance(data.get("data"), dict):
                     for k in ("url", "fileUrl", "path"):
                         if k in data["data"]:
                             return data["data"][k]
             except json.JSONDecodeError:
                 return r.text.strip().strip('"')
-        # 兜底：直接返回文本
+
         return r.text.strip().strip('"')
     except Exception as e:
         logging.exception("UPLOAD exception: %s", e)
@@ -96,10 +89,8 @@ def lipsync_pipeline(text: str, gender: str = "m", merge: bool = True) -> dict:
     api_log  = IDLogger(log_d)
     clip_log = OutputLogger(log_d)
 
-    # 1) 断句
     sentences, _ = parse_text(text)
 
-    # 2) Edge-TTS 合成 + 映射
     tasks = []
     for idx, sent in enumerate(sentences, 1):
         aid, _ = classify_sentence_structure(None)
@@ -114,17 +105,14 @@ def lipsync_pipeline(text: str, gender: str = "m", merge: bool = True) -> dict:
             voice_gender_id=1 if gender == "m" else 2,
         )
 
-    # 3) Wav2Lip
     clips_local = generate_batch_lip_sync(tasks, MAX_WORKERS, video_dir=video_d)
 
-    # 4) 上传
     clips_remote = []
     for mp4 in clips_local:
         clips_remote.append(upload_file(mp4) or mp4)
     for (idx, _wav, aid), url in zip(tasks, clips_remote):
         clip_log.add_entry(text_clip_id=idx, video_path=url, avatar_action_id=aid)
 
-    # 5) 合并
     merged_url = None
     if merge and len(clips_local) > 1:
         merged_local = str(video_d / f"{job_id}.mp4")
@@ -139,11 +127,10 @@ def lipsync_pipeline(text: str, gender: str = "m", merge: bool = True) -> dict:
         "clip_log": clip_log.file_path()
     }
 
-# ──────────────────── RabbitMQ callback ────────────────────
 def callback(ch, method, properties, body: bytes):
     try:
         payload = json.loads(body.decode())
-        logging.info("🎫 收到任务: %s", payload)
+        logging.info("🎫 Received task: %s", payload)
 
         text   = payload["text"]
         gender = payload.get("gender", "m")
@@ -160,10 +147,10 @@ def callback(ch, method, properties, body: bytes):
             body=json.dumps(result).encode(),
             properties=pika.BasicProperties(content_type="application/json", delivery_mode=2)
         )
-        logging.info("✅ 结果已发送至 %s", done_q)
+        logging.info("✅ The result has been sent to %s", done_q)
 
     except Exception as e:
-        logging.exception("❌ 处理失败")
+        logging.exception("❌ Processing failure")
         err = {"status": "error", "error": str(e)}
         done_q = payload.get("done_queue", QUEUE_OUT_DEF) if "payload" in locals() else QUEUE_OUT_DEF
         ch.basic_publish(
@@ -175,7 +162,6 @@ def callback(ch, method, properties, body: bytes):
     finally:
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
-# ──────────────────── 运行监听器 ────────────────────
 def main():
     credentials = pika.PlainCredentials(RABBIT_USER, RABBIT_PASS)
     params = pika.ConnectionParameters(host=RABBIT_HOST, credentials=credentials)
@@ -185,11 +171,11 @@ def main():
     channel.basic_qos(prefetch_count=1)
     channel.basic_consume(queue=QUEUE_IN, on_message_callback=callback)
 
-    logging.info("🔌 已连接 %s，监听队列 %s", RABBIT_HOST, QUEUE_IN)
+    logging.info("🔌 Connected %s, listening queue %s", RABBIT_HOST, QUEUE_IN)
     try:
         channel.start_consuming()
     except KeyboardInterrupt:
-        logging.info("⏹️  手动终止")
+        logging.info("⏹️  Manual termination")
         channel.stop_consuming()
 
 if __name__ == "__main__":
