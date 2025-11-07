@@ -3,7 +3,7 @@
 # Generates **16‑kHz mono WAV** files compatible with Wav2Lip.
 #
 # • synthesize_speech(text, output_path, gender="m", lang="kk")
-#     gender: "m" / "f" → 根据语言选择 Edge-TTS 声音
+#     gender: "m" / "f" → choose gender
 #     lang: "kk" / "ru" / "en"
 #
 # • Also supports full Edge-TTS voice ID directly as gender argument.
@@ -20,9 +20,6 @@ from typing import Literal, Union
 import edge_tts
 from pydub import AudioSegment
 
-# ---------------------------------------------------------------------------
-# 多语言 Voice 映射
-# ---------------------------------------------------------------------------
 
 VOICE_MAP = {
     "kk": {
