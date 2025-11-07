@@ -2,7 +2,7 @@
 import subprocess, tempfile, os
 
 def concat_videos(video_paths, output_path):
-    """用 ffmpeg 按顺序合并 mp4，无重新编码."""
+    """Use ffmpeg to merge MP4 files sequentially without re-encoding."""
     with tempfile.NamedTemporaryFile("w", delete=False, suffix=".txt") as f:
         for p in video_paths:
             f.write(f"file '{os.path.abspath(p)}'\n")
