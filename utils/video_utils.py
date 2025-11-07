@@ -1,22 +1,28 @@
 # utils/video_utils.py
-# =========================================================
-# ① generate_lip_sync        —— 调一次 Wav2Lip 得到单段 MP4
-# ② generate_batch_lip_sync  —— ThreadPool 并发、顺序返回
-#    - 支持 on_done(idx) 回调，便于推送 WebSocket 进度
-# ③ make_video_with_green_background —— 静态绿色背景 + 音频合成 MP4
-# =========================================================
+
+# ===========================================================
+
+# ① generate_lip_sync — Calls Wav2Lip once to get a single MP4 segment
+
+# ② generate_batch_lip_sync — ThreadPool concurrent, sequential return
+
+# - Supports on_done(idx) callback, facilitating WebSocket progress pushing
+
+# ③ make_video_with_green_background — Static green background + audio to synthesize MP4
+
+# ============================================================
 
 from __future__ import annotations
 import pathlib, subprocess, os, uuid, threading, concurrent.futures
 from typing import Sequence, Tuple, List, Callable, Optional
 
-# --- 路径常量 -------------------------------------------------
+# --- Path constants -------------------------------------------
 TEMPLATE_DIR = pathlib.Path("static/video_templates").resolve()
 WAV2LIP_DIR  = pathlib.Path("./wav2lip").resolve()
 OUTPUT_DIR   = pathlib.Path("static/video_output").resolve()
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# --- 单段口型同步视频生成 -------------------------------------
+# --- Single-segment lip-sync video generation -----------------
 def generate_lip_sync(
     audio_path : str,
     gender     : str,
@@ -26,7 +32,7 @@ def generate_lip_sync(
     gpu_id     : int | None = None
 ) -> str:
     """
-    根据 audio + 模板生成一段口型同步视频，返回 mp4 绝对路径
+Generate a lip-synced video based on the audio and template, and return the absolute path of the mp4 file.
     gender: 'm' / 'f'
     """
     video_dir = video_dir or OUTPUT_DIR
@@ -52,7 +58,7 @@ def generate_lip_sync(
     subprocess.check_call(cmd, cwd=str(WAV2LIP_DIR), env=env)
     return str(out_path)
 
-# --- 批量并发口型同步 -----------------------------------------
+# --- Batch concurrent lip-sync -----------------------------------------
 Task = Tuple[str, str, int]  # (audio_path, gender, action_id)
 
 _global_executor: concurrent.futures.ThreadPoolExecutor | None = None
@@ -75,9 +81,11 @@ def generate_batch_lip_sync(
 ) -> List[str]:
     """
     tasks:       [(wav, gender, action_id), ...]
-    max_workers: 并发数
-    on_done(k):  每完成第 k 段（1-based）回调，可用于推送进度
-    返回值:       与 tasks 顺序一致的 mp4 路径列表
+`max_workers`: Concurrency level
+
+`on_done(k)`: Callback after the completion of the k-th segment (1-based), which can be used to push progress.
+
+Return value: A list of mp4 paths in the same order as the tasks.
     """
     results: List[str | None] = [None] * len(tasks)
 
@@ -95,12 +103,12 @@ def generate_batch_lip_sync(
         results[idx] = path
     return results  # type: ignore
 
-# --- 绿色背景 + 音频合成视频 -----------------------------------
+# --- Green background + audio-generated video-----------------------------------
 GREEN_BG_PATH = TEMPLATE_DIR / "green_bg.png"
 
 def make_video_with_green_background(wav_path: str, out_path: str):
     """
-    用纯绿色背景图 + 音频合成静态视频（用于 useAvatar=False 的场景）
+Create a static video using a pure green background image and audio (for scenarios where useAvatar=False).
     """
     if not GREEN_BG_PATH.exists():
         raise FileNotFoundError(f"Green background image not found: {GREEN_BG_PATH}")
