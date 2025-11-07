@@ -1,6 +1,6 @@
 """
-OutputLogger —— 记录 **每个小 clip 完成后** 才知道的结果
-写入 JSON Lines：static/logs/session_<ts>_clips.jsonl
+OutputLogger — Records results that are only known after each small clip is completed.
+Write JSON Lines：static/logs/session_<ts>_clips.jsonl
 """
 
 from __future__ import annotations
