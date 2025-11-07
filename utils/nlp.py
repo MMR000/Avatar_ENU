@@ -72,7 +72,6 @@ def parse_text(text: str):
 # nlp = stanza.Pipeline('kk')
 #
 # def parse_text(text):
-#     """解析文本为句子并分类"""
 #     sentences = [sentence.strip() + '.' for sentence in text.split('.') if sentence.strip()]
 #     stanza_outputs = []
 #
